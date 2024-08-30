@@ -1,0 +1,72 @@
+import time
+import pandas as pd
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+
+# Set up the WebDriver (e.g., ChromeDriver)
+driver = webdriver.Chrome()
+
+# Go directly to the job listings page
+driver.get("https://www.mathjobs.org/jobs?joblist-0-0---0-s-cUS-")
+
+# Wait for the page to load
+time.sleep(3)
+
+# Scrape the job listings
+institutions = []
+job_titles = []
+deadlines = []
+
+# Find all institution blocks
+institution_blocks = driver.find_elements(By.XPATH, "//div[@class='clr']")
+
+print(f"Found {len(institution_blocks)} institution blocks.")
+
+for block in institution_blocks:
+    try:
+        # Extract institution name
+        institution = block.find_element(By.XPATH, ".//b/a").text.strip()
+        print(f"Processing institution: {institution}")
+
+        # Find all job listings under this institution
+        job_listings = block.find_elements(By.XPATH, ".//ol[@class='sp5']/li")
+        print(f"Found {len(job_listings)} job listings for {institution}.")
+
+        for job in job_listings:
+            try:
+                # Extract job title
+                job_title = job.find_element(By.XPATH, "./a").text.strip()
+            except Exception as e:
+                print(f"Error finding job title: {e}")
+                continue
+
+            # Extract the application deadline
+            try:
+                deadline_element = job.find_element(By.XPATH, ".//span[contains(@class, 'purplesml') or contains(@class, 'sml')]")
+                deadline = deadline_element.text.strip()
+            except Exception as e:
+                deadline = "N/A"
+                print(f"Error finding application deadline: {e}")
+
+            # Append the extracted data to the lists
+            institutions.append(institution)
+            job_titles.append(job_title)
+            deadlines.append(deadline)
+
+    except Exception as e:
+        print(f"Error processing institution block: {e}")
+
+# Create a DataFrame and save to Excel without the job link
+df = pd.DataFrame({
+    "Institution": institutions,
+    "Job Title": job_titles,
+    "Application Deadline": deadlines,
+})
+
+output_file = "mathjobs_deadlines.xlsx"
+df.to_excel(output_file, index=False)
+
+# Close the browser
+driver.quit()
+
+print(f"Data has been successfully saved to {output_file}")
